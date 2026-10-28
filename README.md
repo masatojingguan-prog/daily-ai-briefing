@@ -43,7 +43,7 @@ GitHub Actions で毎朝 7:00 JST に実行されます（`.github/workflows/dai
 |---|---|---|
 | Secret | `GEMINI_API_KEY` | 手順1のキー |
 | Secret | `SLACK_BOT_TOKEN` | 手順2の `xoxb-...` |
-| Variable | `SLACK_CHANNEL` | 投稿先。`#ai-news` やチャンネル ID（`C0123456789`）。カンマ区切りで複数指定可 |
+| Variable | `SLACK_CHANNEL` | 投稿先。`#ai-news` やチャンネル ID（`C0123456789`）。個人宛ての DM にするならメンバー ID（`U0123456789`）。カンマ区切りで複数指定可 |
 | Variable（任意） | `GEMINI_MODEL` | 使うモデル（未設定なら `gemini-3.8-flash`） |
 | Secret（任意） | `TEAMS_WEBHOOK_URL` | Teams にも投稿する場合 |
 
