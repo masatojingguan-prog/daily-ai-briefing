@@ -1,0 +1,100 @@
+# 収集対象のフィード一覧。category は要約時のヒントとして Claude に渡される。
+# 追加・削除は自由。RSS / Atom であれば何でも可。
+
+[settings]
+hours_back = 26          # 何時間前までの記事を対象にするか（cron の遅延を考慮して少し長め）
+max_items_per_feed = 15  # 1フィードあたりの最大件数
+summary_chars = 400      # 各記事の本文抜粋の最大文字数
+
+# --- AI / LLM ---
+[[feeds]]
+name = "OpenAI News"
+category = "ai"
+url = "https://openai.com/news/rss.xml"
+
+[[feeds]]
+name = "Google DeepMind Blog"
+category = "ai"
+url = "https://deepmind.google/blog/rss.xml"
+
+[[feeds]]
+name = "Google Research Blog"
+category = "ai"
+url = "https://research.google/blog/rss/"
+
+[[feeds]]
+name = "Hugging Face Blog"
+category = "ai"
+url = "https://huggingface.co/blog/feed.xml"
+
+[[feeds]]
+name = "ITmedia AI+"
+category = "ai"
+url = "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml"
+
+[[feeds]]
+name = "Zenn (LLM)"
+category = "ai"
+url = "https://zenn.dev/topics/llm/feed"
+
+[[feeds]]
+name = "Hacker News (frontpage)"
+category = "mixed"
+url = "https://hnrss.org/frontpage?points=150"
+
+# --- AI コーディングツールのリリース ---
+[[feeds]]
+name = "Claude Code releases"
+category = "tools"
+url = "https://github.com/anthropics/claude-code/releases.atom"
+
+[[feeds]]
+name = "OpenAI Codex CLI releases"
+category = "tools"
+url = "https://github.com/openai/codex/releases.atom"
+
+[[feeds]]
+name = "Gemini CLI releases"
+category = "tools"
+url = "https://github.com/google-gemini/gemini-cli/releases.atom"
+
+# --- 開発環境 / 言語 / プラットフォーム ---
+[[feeds]]
+name = "GitHub Changelog"
+category = "dev"
+url = "https://github.blog/changelog/feed/"
+
+[[feeds]]
+name = "VS Code Updates"
+category = "dev"
+url = "https://code.visualstudio.com/feed.xml"
+
+[[feeds]]
+name = "Publickey"
+category = "dev"
+url = "https://www.publickey1.jp/atom.xml"
+
+[[feeds]]
+name = "TypeScript Blog"
+category = "dev"
+url = "https://devblogs.microsoft.com/typescript/feed/"
+
+[[feeds]]
+name = "Python Insider"
+category = "dev"
+url = "https://pythoninsider.blogspot.com/feeds/posts/default"
+
+[[feeds]]
+name = "Node.js Blog"
+category = "dev"
+url = "https://nodejs.org/en/feed/blog.xml"
+
+[[feeds]]
+name = "Rust Blog"
+category = "dev"
+url = "https://blog.rust-lang.org/feed.xml"
+
+[[feeds]]
+name = "uv releases"
+category = "dev"
+url = "https://github.com/astral-sh/uv/releases.atom"
