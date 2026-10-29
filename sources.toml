@@ -98,3 +98,49 @@ url = "https://blog.rust-lang.org/feed.xml"
 name = "uv releases"
 category = "dev"
 url = "https://github.com/astral-sh/uv/releases.atom"
+
+# --- 開発Tips / VS Code 活用・効率化 ---
+[[feeds]]
+name = "Zenn (VS Code)"
+category = "tips"
+url = "https://zenn.dev/topics/vscode/feed"
+
+[[feeds]]
+name = "Zenn (Claude Code)"
+category = "tips"
+url = "https://zenn.dev/topics/claudecode/feed"
+
+[[feeds]]
+name = "Zenn (GitHub Copilot)"
+category = "tips"
+url = "https://zenn.dev/topics/githubcopilot/feed"
+
+[[feeds]]
+name = "Qiita (VS Code)"
+category = "tips"
+url = "https://qiita.com/tags/vscode/feed"
+
+[[feeds]]
+name = "Qiita (Claude Code)"
+category = "tips"
+url = "https://qiita.com/tags/claudecode/feed"
+
+[[feeds]]
+name = "GitHub Blog (Copilot)"
+category = "tips"
+url = "https://github.blog/ai-and-ml/github-copilot/feed/"
+
+[[feeds]]
+name = "GitHub Blog (Developer skills)"
+category = "tips"
+url = "https://github.blog/developer-skills/feed/"
+
+[[feeds]]
+name = "Simon Willison"
+category = "tips"
+url = "https://simonwillison.net/atom/everything/"
+
+[[feeds]]
+name = "DEV Community (vscode)"
+category = "tips"
+url = "https://dev.to/feed/tag/vscode"

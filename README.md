@@ -56,7 +56,7 @@ GitHub Actions で毎朝 7:00 JST に実行されます（`.github/workflows/dai
 
 ## 収集対象の変更
 
-`sources.toml` に `[[feeds]]` を追加・削除するだけです。`category` は `ai` / `tools` / `dev` / `mixed`
+`sources.toml` に `[[feeds]]` を追加・削除するだけです。`category` は `ai` / `tools` / `dev` / `tips` / `mixed`
 のいずれか（要約時のヒントとして使われます）。GitHub リポジトリのリリースは
 `https://github.com/<owner>/<repo>/releases.atom` で追加できます。
 
