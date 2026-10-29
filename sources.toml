@@ -4,6 +4,7 @@
 [settings]
 hours_back = 26          # 何時間前までの記事を対象にするか（cron の遅延を考慮して少し長め）
 max_items_per_feed = 15  # 1フィードあたりの最大件数
+max_items_per_category = 10  # 1カテゴリあたりの最大件数。Gemini がタイトルから重要度で選ぶ（0 で絞り込みなし）
 summary_chars = 400      # 各記事の本文抜粋の最大文字数
 
 # --- AI / LLM ---

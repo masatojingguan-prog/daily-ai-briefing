@@ -17,8 +17,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import notify
-from .fetch import collect
-from .summarize import summarize
+from .fetch import collect, limit_per_category
+from .summarize import select, summarize
 
 JST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,10 +43,23 @@ def main() -> int:
         print("[info] 新着記事がないため終了します")
         return 0
 
+    # 1段階目: タイトルだけで重要な記事を選ぶ（失敗したら新しい順の機械的な絞り込みにする）
+    collected = len(articles)
+    limit = config.get("settings", {}).get("max_items_per_category")
+    if limit:
+        try:
+            articles = select(articles, limit)
+            print(f"[info] Gemini が {collected} 件から {len(articles)} 件を選びました")
+        except Exception as e:
+            print(f"[warn] 記事の選別に失敗したため新しい順で絞り込みます: {e}")
+            articles = limit_per_category(articles, limit)
+            print(f"[info] {collected} 件から {len(articles)} 件に絞り込みました")
+
+    # 2段階目: 選んだ記事を抜粋付きで要約する
     briefing = summarize(articles)
 
     date_str = datetime.now(JST).strftime("%Y-%m-%d (%a)")
-    footer = f"{len(config['feeds'])} フィード / {len(articles)} 記事から自動生成"
+    footer = f"{len(config['feeds'])} フィード / {collected} 記事から自動生成"
     if failures:
         footer += f"　⚠️ 取得失敗: {', '.join(failures)}"
 

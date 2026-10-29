@@ -39,6 +39,28 @@ SYSTEM_PROMPT = """\
 - 記事がほとんどない日は、無理に件数を増やさず、少ないまま出力する。
 """
 
+SELECT_PROMPT = """\
+あなたはソフトウェアエンジニア向けのテックニュース編集者です。
+与えられた記事リスト（番号・カテゴリ・収集元・タイトル）から、デイリーブリーフィングに載せる
+記事を選んでください。
+
+方針:
+- 対象読者は AI を活用して VS Code で開発するソフトウェアエンジニア。実務への影響が大きいものを優先する。
+- 新モデル・新機能・料金変更・破壊的変更・セキュリティ関連・主要ツールのリリースは重要度が高い。
+- category=tips は、明日から試せる実践的な情報（拡張機能・設定・ショートカット、AI コーディングツールの
+  使いこなし、開発ワークフローの効率化など）を優先し、ポエム・初心者向け手順・宣伝は選ばない。
+- category=mixed は AI・開発環境・プログラミングに関係するものだけを選ぶ。
+- 同じ話題の記事が複数あれば、最も一次情報に近いもの1件だけを選ぶ。
+- 各カテゴリから最大 {limit} 件。重要な記事が少なければ少なくてよい。
+- 選んだ記事の番号を selected に返す。
+"""
+
+SELECT_SCHEMA = {
+    "type": "object",
+    "properties": {"selected": {"type": "array", "items": {"type": "integer"}}},
+    "required": ["selected"],
+}
+
 ITEM_SCHEMA = {
     "type": "object",
     "properties": {
@@ -82,9 +104,17 @@ def _format_articles(articles: list[Article]) -> str:
 
 
 def _post_with_retry(url: str, headers: dict, body: dict, attempts: int = 4) -> dict:
-    """無料枠のレート制限（429）や一時的な 5xx に備えてリトライする。"""
+    """無料枠のレート制限（429）や一時的な 5xx・タイムアウトに備えてリトライする。"""
     for attempt in range(attempts):
-        resp = requests.post(url, headers=headers, json=body, timeout=180)
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=300)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            if attempt == attempts - 1:
+                raise
+            wait = 30 * (attempt + 1)
+            print(f"[warn] Gemini API に接続できませんでした（{type(e).__name__}）、{wait} 秒後に再試行します")
+            time.sleep(wait)
+            continue
         if resp.status_code == 200:
             return resp.json()
         if resp.status_code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
@@ -96,20 +126,17 @@ def _post_with_retry(url: str, headers: dict, body: dict, attempts: int = 4) -> 
     raise AssertionError("unreachable")
 
 
-def summarize(articles: list[Article]) -> dict:
+def _generate(system_prompt: str, user_text: str, schema: dict) -> dict:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY が設定されていません")
 
     body = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": [{
-            "role": "user",
-            "parts": [{"text": f"以下が収集した記事です（{len(articles)} 件）。\n\n{_format_articles(articles)}"}],
-        }],
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_text}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
-            "responseSchema": copy.deepcopy(BRIEFING_SCHEMA),
+            "responseSchema": copy.deepcopy(schema),
         },
     }
     data = _post_with_retry(
@@ -134,3 +161,38 @@ def summarize(articles: list[Article]) -> dict:
         p.get("text", "") for p in candidate["content"]["parts"] if not p.get("thought")
     )
     return json.loads(text)
+
+
+def select(articles: list[Article], limit: int) -> list[Article]:
+    """タイトルだけを渡して、カテゴリごとに重要な記事を最大 limit 件選ばせる。"""
+    lines = [f"[{i}] category={a.category} source={a.source} title: {a.title}"
+             for i, a in enumerate(articles, 1)]
+    result = _generate(
+        SELECT_PROMPT.format(limit=limit),
+        f"以下が収集した記事です（{len(articles)} 件）。\n\n" + "\n".join(lines),
+        SELECT_SCHEMA,
+    )
+
+    # 範囲外・重複の番号を除き、カテゴリごとの上限もこちらで守る
+    selected: list[Article] = []
+    counts: dict[str, int] = {}
+    seen: set[int] = set()
+    for n in result.get("selected", []):
+        if not isinstance(n, int) or not 1 <= n <= len(articles) or n in seen:
+            continue
+        seen.add(n)
+        a = articles[n - 1]
+        if counts.get(a.category, 0) < limit:
+            counts[a.category] = counts.get(a.category, 0) + 1
+            selected.append(a)
+    if not selected:
+        raise RuntimeError("Gemini が記事を1件も選びませんでした")
+    return selected
+
+
+def summarize(articles: list[Article]) -> dict:
+    return _generate(
+        SYSTEM_PROMPT,
+        f"以下が収集した記事です（{len(articles)} 件）。\n\n{_format_articles(articles)}",
+        BRIEFING_SCHEMA,
+    )

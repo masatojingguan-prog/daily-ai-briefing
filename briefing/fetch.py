@@ -90,3 +90,21 @@ def collect(config: dict) -> tuple[list[Article], list[str]]:
                 articles.append(a)
         print(f"[info] {feed['name']}: {len(items)} 件")
     return articles, failures
+
+
+def limit_per_category(articles: list[Article], limit: int) -> list[Article]:
+    """カテゴリごとに最大 limit 件に絞る。特定のフィードに偏らないよう、フィードを順番に回して新しい順に選ぶ。"""
+    by_category: dict[str, dict[str, list[Article]]] = {}
+    for a in articles:  # フィード内は新しい順に並んでいる
+        by_category.setdefault(a.category, {}).setdefault(a.source, []).append(a)
+
+    selected: list[Article] = []
+    for category, by_source in by_category.items():
+        queues = list(by_source.values())
+        picked: list[Article] = []
+        while len(picked) < limit and any(queues):
+            for q in queues:
+                if q and len(picked) < limit:
+                    picked.append(q.pop(0))
+        selected.extend(picked)
+    return selected

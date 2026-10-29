@@ -4,7 +4,7 @@
 Gemini API（無料枠）で日本語のブリーフィングにまとめて、指定した Slack チャンネルに投稿します。
 
 ```
-RSS / Atom (sources.toml) ──▶ 直近26時間の記事を抽出 ──▶ Gemini で選別・日本語要約 ──▶ Slack（指定チャンネル）
+RSS / Atom (sources.toml) ──▶ 直近26時間の記事を抽出 ──▶ Gemini で重要記事を選別 ──▶ 日本語要約 ──▶ Slack（指定チャンネル）
 ```
 
 GitHub Actions で毎朝 7:00 JST に実行されます（`.github/workflows/daily-briefing.yml`）。
@@ -16,7 +16,7 @@ GitHub Actions で毎朝 7:00 JST に実行されます（`.github/workflows/dai
 | 要素 | 無料の根拠 |
 |---|---|
 | GitHub Actions | 公開リポジトリは無料（1回あたり約1分） |
-| Gemini API | Google AI Studio の無料枠（1日1リクエストのみ使用） |
+| Gemini API | Google AI Studio の無料枠（1日2リクエスト（選別・要約）のみ使用） |
 | Slack | 無料プランでも自作アプリ（Bot）を利用可能 |
 
 > Gemini の無料枠では、送信した内容が Google のサービス改善に使われる場合があります。
