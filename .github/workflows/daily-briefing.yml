@@ -2,8 +2,9 @@ name: Daily AI Briefing
 
 on:
   schedule:
-    # 毎朝 7:00 JST（= 22:00 UTC 前日）。GitHub の cron は数分〜数十分遅れることがある
-    - cron: "0 22 * * *"
+    # 毎朝 6:23 JST（= 21:23 UTC 前日）。GitHub の cron は混雑する毎時 0 分を避けないと
+    # 遅延・スキップされやすいため半端な分にし、遅れても 7 時台には届くよう早めにしている
+    - cron: "23 21 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

@@ -7,7 +7,7 @@ Gemini API（無料枠）で日本語のブリーフィングにまとめて、�
 RSS / Atom (sources.toml) ──▶ 直近26時間の記事を抽出 ──▶ Gemini で重要記事を選別 ──▶ 日本語要約 ──▶ Slack（指定チャンネル）
 ```
 
-GitHub Actions で毎朝 7:00 JST に実行されます（`.github/workflows/daily-briefing.yml`）。
+GitHub Actions で毎朝 6:23 JST ごろに実行されます（GitHub 側の混雑で数十分遅れることがあります）（`.github/workflows/daily-briefing.yml`）。
 
 ## 費用
 
