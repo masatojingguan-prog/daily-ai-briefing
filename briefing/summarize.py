@@ -12,6 +12,13 @@ import requests
 from .fetch import Article
 
 MODEL = os.environ.get("GEMINI_MODEL") or "gemini-3.8-flash"
+# メインのモデルが混雑（503）などで使えないときに順に試すモデル（カンマ区切り）
+FALLBACK_MODELS = [
+    m.strip()
+    for m in (os.environ.get("GEMINI_FALLBACK_MODELS") or "gemini-3.5-flash-lite").split(",")
+    if m.strip() and m.strip() != MODEL
+]
+RETRY_WAITS = (30, 90, 180)  # 1モデルあたりの再試行の待ち時間（秒）
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 SYSTEM_PROMPT = """\
@@ -103,27 +110,50 @@ def _format_articles(articles: list[Article]) -> str:
     return "\n".join(lines)
 
 
-def _post_with_retry(url: str, headers: dict, body: dict, attempts: int = 4) -> dict:
+class _GiveUpModel(Exception):
+    """このモデルではこれ以上粘らず、次のモデルに切り替えるべきエラー。"""
+
+
+def _post_with_retry(url: str, headers: dict, body: dict) -> dict:
     """無料枠のレート制限（429）や一時的な 5xx・タイムアウトに備えてリトライする。"""
+    attempts = len(RETRY_WAITS) + 1
     for attempt in range(attempts):
+        last = attempt == attempts - 1
         try:
             resp = requests.post(url, headers=headers, json=body, timeout=300)
         except (requests.Timeout, requests.ConnectionError) as e:
-            if attempt == attempts - 1:
-                raise
-            wait = 30 * (attempt + 1)
+            if last:
+                raise _GiveUpModel(f"{type(e).__name__}: {e}") from e
+            wait = RETRY_WAITS[attempt]
             print(f"[warn] Gemini API に接続できませんでした（{type(e).__name__}）、{wait} 秒後に再試行します")
             time.sleep(wait)
             continue
         if resp.status_code == 200:
             return resp.json()
-        if resp.status_code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
-            wait = 30 * (attempt + 1)
+        if resp.status_code == 404:
+            # モデル名が存在しない・廃止された
+            raise _GiveUpModel(f"Gemini API error 404: {resp.text[:300]}")
+        if resp.status_code in (429, 500, 502, 503, 504):
+            if last:
+                raise _GiveUpModel(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
+            wait = RETRY_WAITS[attempt]
             print(f"[warn] Gemini API {resp.status_code}、{wait} 秒後に再試行します")
             time.sleep(wait)
             continue
         raise RuntimeError(f"Gemini API error {resp.status_code}: {resp.text[:1000]}")
     raise AssertionError("unreachable")
+
+
+def _post_any_model(headers: dict, body: dict) -> tuple[str, dict]:
+    """メインのモデルから順に試し、最初に応答したモデル名と応答を返す。"""
+    errors = []
+    for model in [MODEL, *FALLBACK_MODELS]:
+        try:
+            return model, _post_with_retry(ENDPOINT.format(model=model), headers, body)
+        except _GiveUpModel as e:
+            print(f"[warn] {model} を諦めます: {e}")
+            errors.append(f"{model}: {e}")
+    raise RuntimeError("すべてのモデルで失敗しました / " + " / ".join(errors))
 
 
 def _generate(system_prompt: str, user_text: str, schema: dict) -> dict:
@@ -139,12 +169,11 @@ def _generate(system_prompt: str, user_text: str, schema: dict) -> dict:
             "responseSchema": copy.deepcopy(schema),
         },
     }
-    data = _post_with_retry(
-        ENDPOINT.format(model=MODEL),
+    model, data = _post_any_model(
         {"x-goog-api-key": api_key, "Content-Type": "application/json"},
         body,
     )
-    print(f"[info] model={MODEL} usage={data.get('usageMetadata')}")
+    print(f"[info] model={model} usage={data.get('usageMetadata')}")
 
     block = data.get("promptFeedback", {}).get("blockReason")
     if block:

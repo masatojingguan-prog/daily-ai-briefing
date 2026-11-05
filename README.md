@@ -45,6 +45,7 @@ GitHub Actions で毎朝 6:23 JST ごろに実行されます（GitHub 側の混
 | Secret | `SLACK_BOT_TOKEN` | 手順2の `xoxb-...` |
 | Variable | `SLACK_CHANNEL` | 投稿先。`#ai-news` やチャンネル ID（`C0123456789`）。個人宛ての DM にするならメンバー ID（`U0123456789`）。カンマ区切りで複数指定可 |
 | Variable（任意） | `GEMINI_MODEL` | 使うモデル（未設定なら `gemini-3.8-flash`） |
+| Variable（任意） | `GEMINI_FALLBACK_MODELS` | メインのモデルが混雑などで使えないときに順に試すモデル。カンマ区切り（未設定なら `gemini-3.5-flash-lite`） |
 | Secret（任意） | `TEAMS_WEBHOOK_URL` | Teams にも投稿する場合 |
 
 投稿先を変えたいときは、`SLACK_CHANNEL` を書き換えるだけで済みます。
@@ -79,4 +80,5 @@ python -m briefing.main                # 投稿まで（SLACK_BOT_TOKEN と SLAC
 | `channel_not_found` | チャンネル名か ID を確認する。非公開チャンネルは Bot の招待が必要 |
 | `missing_scope` | `chat:write` スコープを追加してアプリを再インストールする |
 | Gemini API `429` | 無料枠のレート制限。自動で再試行し、続く場合は `GEMINI_MODEL` を `gemini-3.5-flash-lite` などに変える |
+| Gemini API `503`（high demand） | Google 側の混雑。各モデルで再試行し、だめなら `GEMINI_FALLBACK_MODELS` のモデルに切り替える。すべて失敗すると Slack に失敗通知が届く |
 | Gemini API `404` | モデル名が廃止された可能性がある。`GEMINI_MODEL` を[無料枠の対象モデル](https://ai.google.dev/gemini-api/docs/pricing)に変える |

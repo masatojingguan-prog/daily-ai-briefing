@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import tomllib
+import traceback
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,12 +25,49 @@ JST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _slack_targets() -> tuple[str | None, list[str]]:
+    token = os.environ.get("SLACK_BOT_TOKEN")
+    # カンマ区切りで複数指定可（例: "#ai-news,C0123456789"）
+    channels = [c.strip() for c in os.environ.get("SLACK_CHANNEL", "").split(",") if c.strip()]
+    return token, channels
+
+
+def _notify_failure(error: Exception) -> None:
+    """生成に失敗したことを Slack に知らせる（届かないまま気づけない状態を防ぐ）。"""
+    token, channels = _slack_targets()
+    if not (token and channels):
+        return
+    run_url = ""
+    if os.environ.get("GITHUB_RUN_ID"):
+        run_url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+                   f"{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+    date_str = datetime.now(JST).strftime("%Y-%m-%d (%a)")
+    text = (f":warning: {date_str} の AI ブリーフィングの生成に失敗しました\n"
+            f"```{str(error)[:1500]}```" + (f"\nログ: {run_url}" if run_url else ""))
+    for ch in channels:
+        try:
+            notify.post_slack(token, ch, {"text": text})
+            print(f"[info] Slack {ch} に失敗を通知しました")
+        except Exception as e:
+            print(f"[error] 失敗通知も送れませんでした（Slack {ch}）: {e}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=str(ROOT / "sources.toml"))
     parser.add_argument("--dry-run", action="store_true", help="Webhook に投稿せず内容を表示する")
     parser.add_argument("--fetch-only", action="store_true", help="記事の収集だけ行う")
     args = parser.parse_args()
+    try:
+        return _run(args)
+    except Exception as e:
+        traceback.print_exc()
+        if not (args.dry_run or args.fetch_only):
+            _notify_failure(e)
+        return 1
+
+
+def _run(args: argparse.Namespace) -> int:
 
     config = tomllib.loads(Path(args.config).read_text(encoding="utf-8"))
     articles, failures = collect(config)
@@ -63,9 +101,7 @@ def main() -> int:
     if failures:
         footer += f"　⚠️ 取得失敗: {', '.join(failures)}"
 
-    slack_token = os.environ.get("SLACK_BOT_TOKEN")
-    # カンマ区切りで複数指定可（例: "#ai-news,C0123456789"）
-    slack_channels = [c.strip() for c in os.environ.get("SLACK_CHANNEL", "").split(",") if c.strip()]
+    slack_token, slack_channels = _slack_targets()
     teams_url = os.environ.get("TEAMS_WEBHOOK_URL")
 
     targets = []
