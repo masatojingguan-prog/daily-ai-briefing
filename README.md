@@ -7,7 +7,18 @@ Gemini API（無料枠）で日本語のブリーフィングにまとめて、�
 RSS / Atom (sources.toml) ──▶ 直近26時間の記事を抽出 ──▶ Gemini で重要記事を選別 ──▶ 日本語要約 ──▶ Slack（指定チャンネル）
 ```
 
-GitHub Actions で毎朝 6:23 JST ごろに実行されます（GitHub 側の混雑で数十分遅れることがあります）（`.github/workflows/daily-briefing.yml`）。
+GitHub Actions で実行されます（`.github/workflows/daily-briefing.yml`）。
+
+GitHub の定期実行（schedule）は混雑で数時間遅れることがあるため、決まった時刻の配信は外部スケジューラ
+（[cron-job.org](https://cron-job.org)）から `workflow_dispatch` API を呼んで起動します。schedule（6:23 JST）は外部起動が
+来なかった日の予備で、その日すでに配信済みなら何もしません。配信済みでも送り直したいときは、手動実行で `force` にチェックを入れます。
+
+外部スケジューラの設定:
+
+- URL: `https://api.github.com/repos/<owner>/daily-ai-briefing/actions/workflows/daily-briefing.yml/dispatches`（POST）
+- ヘッダー: `Authorization: Bearer <トークン>`、`Accept: application/vnd.github+json`
+- 本文: `{"ref":"main"}`
+- トークン: Fine-grained personal access token。対象リポジトリをこのリポジトリだけにし、権限は Actions の Read and write のみ
 
 ## 費用
 

@@ -18,7 +18,9 @@ FALLBACK_MODELS = [
     for m in (os.environ.get("GEMINI_FALLBACK_MODELS") or "gemini-3.5-flash-lite").split(",")
     if m.strip() and m.strip() != MODEL
 ]
-RETRY_WAITS = (30, 90, 180)  # 1モデルあたりの再試行の待ち時間（秒）
+# 再試行の待ち時間（秒）。次のモデルがあるうちは早めに見切り、最後のモデルだけ粘る
+QUICK_WAITS = (30,)
+FULL_WAITS = (30, 90, 180)
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 SYSTEM_PROMPT = """\
@@ -114,9 +116,9 @@ class _GiveUpModel(Exception):
     """このモデルではこれ以上粘らず、次のモデルに切り替えるべきエラー。"""
 
 
-def _post_with_retry(url: str, headers: dict, body: dict) -> dict:
+def _post_with_retry(url: str, headers: dict, body: dict, waits: tuple[int, ...]) -> dict:
     """無料枠のレート制限（429）や一時的な 5xx・タイムアウトに備えてリトライする。"""
-    attempts = len(RETRY_WAITS) + 1
+    attempts = len(waits) + 1
     for attempt in range(attempts):
         last = attempt == attempts - 1
         try:
@@ -124,7 +126,7 @@ def _post_with_retry(url: str, headers: dict, body: dict) -> dict:
         except (requests.Timeout, requests.ConnectionError) as e:
             if last:
                 raise _GiveUpModel(f"{type(e).__name__}: {e}") from e
-            wait = RETRY_WAITS[attempt]
+            wait = waits[attempt]
             print(f"[warn] Gemini API に接続できませんでした（{type(e).__name__}）、{wait} 秒後に再試行します")
             time.sleep(wait)
             continue
@@ -136,7 +138,7 @@ def _post_with_retry(url: str, headers: dict, body: dict) -> dict:
         if resp.status_code in (429, 500, 502, 503, 504):
             if last:
                 raise _GiveUpModel(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
-            wait = RETRY_WAITS[attempt]
+            wait = waits[attempt]
             print(f"[warn] Gemini API {resp.status_code}、{wait} 秒後に再試行します")
             time.sleep(wait)
             continue
@@ -147,9 +149,11 @@ def _post_with_retry(url: str, headers: dict, body: dict) -> dict:
 def _post_any_model(headers: dict, body: dict) -> tuple[str, dict]:
     """メインのモデルから順に試し、最初に応答したモデル名と応答を返す。"""
     errors = []
-    for model in [MODEL, *FALLBACK_MODELS]:
+    models = [MODEL, *FALLBACK_MODELS]
+    for i, model in enumerate(models):
+        waits = FULL_WAITS if i == len(models) - 1 else QUICK_WAITS
         try:
-            return model, _post_with_retry(ENDPOINT.format(model=model), headers, body)
+            return model, _post_with_retry(ENDPOINT.format(model=model), headers, body, waits)
         except _GiveUpModel as e:
             print(f"[warn] {model} を諦めます: {e}")
             errors.append(f"{model}: {e}")

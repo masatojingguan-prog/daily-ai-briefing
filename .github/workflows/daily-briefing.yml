@@ -1,9 +1,11 @@
 name: Daily AI Briefing
+run-name: ${{ inputs.dry_run && 'Daily AI Briefing (dry run)' || 'Daily AI Briefing' }}
 
 on:
+  # 決まった時刻の配信は外部スケジューラ（cron-job.org）から workflow_dispatch で起動する。
+  # GitHub の schedule は混雑で数時間遅れることがあるため、外部起動が来なかった日の予備として残す
+  # （UTC 指定。21:23 UTC = 6:23 JST。その日すでに配信済みなら何もしない）
   schedule:
-    # 毎朝 6:23 JST（= 21:23 UTC 前日）。GitHub の cron は混雑する毎時 0 分を避けないと
-    # 遅延・スキップされやすいため半端な分にし、遅れても 7 時台には届くよう早めにしている
     - cron: "23 21 * * *"
   workflow_dispatch:
     inputs:
@@ -11,12 +13,43 @@ on:
         description: "投稿せずにログへ出力する"
         type: boolean
         default: false
+      force:
+        description: "今日すでに配信済みでも配信する"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
+
+# 外部起動と予備の schedule が重なっても同時に走らせず、後のほうは配信済みチェックで止める
+concurrency:
+  group: daily-briefing
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      delivered: ${{ steps.check.outputs.delivered }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKIP_CHECK: ${{ inputs.dry_run || inputs.force }}
+        run: |
+          if [ "$SKIP_CHECK" = "true" ]; then
+            echo "delivered=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          since=$(TZ=Asia/Tokyo date +%Y-%m-%dT00:00:00+09:00)
+          n=$(gh run list -R "$GITHUB_REPOSITORY" -w daily-briefing.yml -s success \
+                --created ">=$since" --json displayTitle \
+                -q '[.[] | select(.displayTitle == "Daily AI Briefing")] | length')
+          echo "今日（$since 以降）の配信済み回数: $n"
+          echo "delivered=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   briefing:
+    needs: guard
+    if: needs.guard.outputs.delivered != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
