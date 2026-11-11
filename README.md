@@ -18,6 +18,8 @@ GitHub の定期実行（schedule）は混雑で数時間遅れることがあ�
 - URL: `https://api.github.com/repos/<owner>/daily-ai-briefing/actions/workflows/daily-briefing.yml/dispatches`（POST）
 - ヘッダー: `Authorization: Bearer <トークン>`、`Accept: application/vnd.github+json`
 - 本文: `{"ref":"main"}`
+- 実行時刻: 毎日 6:00 JST から 15 分おきなど。6:00 JST より前の起動は何もせず終わり、その日配信済みなら以降の起動も何もしないので、
+  15 分おきにしておくと Gemini の混雑で失敗した日も次の起動で自動的にやり直されます
 - トークン: Fine-grained personal access token。対象リポジトリをこのリポジトリだけにし、権限は Actions の Read and write のみ
 
 ## 費用
